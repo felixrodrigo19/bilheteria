@@ -1,0 +1,18 @@
+services:
+  reserva-db:
+    image: postgres:18
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    volumes:
+      - reserva-data:/var/lib/postgresql
+
+  cache:
+    image: valkey/valkey:9.1
+    ports:
+      - "6379:6379"
+
+
+volumes:
+  reserva-data:
