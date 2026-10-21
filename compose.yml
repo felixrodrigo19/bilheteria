@@ -1,0 +1,63 @@
+services:
+
+  kafka:
+    image: apache/kafka-native:4.3.1
+    hostname: kafka
+    ports:
+      - "9092:9092"                       # só para quem roda fora do Docker: IDE, testes manuais
+    environment:
+      # KRaft: o mesmo nó é broker e controller, sem ZooKeeper
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      # Três portas: uma para os containers, uma para o seu computador, uma para o controller
+      KAFKA_LISTENERS: INTERNO://:29092,EXTERNO://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNO://kafka:29092,EXTERNO://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNO:PLAINTEXT,EXTERNO:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNO
+
+      # Um nó só: os tópicos internos não podem pedir 3 réplicas
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
+
+      # Desenvolvimento
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0   # consumidor começa a ler na hora
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"    # tópico só nasce pelo NewTopic da aplicação
+    healthcheck:
+      # A imagem nativa não traz os scripts do Kafka; o bash testa se a porta interna já aceita conexão
+      test: [ "CMD", "bash", "-c", "</dev/tcp/localhost/29092" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+#
+#  reserva-service:
+#    build: ./reserva-service
+#    ports:
+#      - "8080:8080"                       # o único serviço com API pública
+#    environment:
+#      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+#    depends_on:
+#      kafka:
+#        condition: service_healthy
+#
+#  pagamento-service:
+#    build: ./pagamento-service
+#    environment:
+#      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+#    depends_on:
+#      kafka:
+#        condition: service_healthy
+#
+#  notificacao-service:
+#    build: ./notificacao-service
+#    environment:
+#      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+#    depends_on:
+#      kafka:
+#        condition: service_healthy
